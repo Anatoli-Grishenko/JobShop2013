@@ -1,0 +1,32 @@
+{
+    "operations":["slowcut","fastcut","polish","paint","drill","mould"],
+    "products": [
+        {"id": "prod0", "sequence":["slowcut"]},
+        {"id": "prod1", "sequence":["slowcut","drill","polish"]},
+        {"id": "prod2", "sequence":["slowcut","drill","polish"]},
+        {"id": "prod3", "sequence":["slowcut","drill","polish"]},
+        {"id": "prod4", "sequence":["fastcut","polish","paint"]},
+        {"id": "prod5", "sequence":["fastcut","polish","paint"]},
+        {"id": "prod6", "sequence":["fastcut","polish","paint"]},
+        {"id": "prod7", "sequence":["mould","drill","polish","paint"]},
+        {"id": "prod8", "sequence":["mould","drill","polish","paint"]},
+        {"id": "prod9", "sequence":["mould","drill","polish","paint"]}
+    ],
+    "machines": [
+        {"name":"cutter1","configuration":[{"operation":"slowcut","time":10},{"operation":"fastcut","time":5}]},
+        {"name":"cutter2","configuration":[{"operation":"slowcut","time":10},{"operation":"fastcut","time":5}]},
+        {"name":"cutter+","configuration":[{"operation":"slowcut","time":5},{"operation":"fastcut","time":1}]},
+        {"name":"polisher1","configuration":[{"operation":"polish","time":15}]},
+        {"name":"polisher2","configuration":[{"operation":"polish","time":15}]},
+        {"name":"polisher3","configuration":[{"operation":"polish","time":5}]},
+        {"name":"paintpro","configuration":[{"operation":"paint","time":5}]},
+        {"name":"painter","configuration":[{"operation":"paint","time":15}]},
+        {"name":"driller","configuration":[{"operation":"drill","time":5}]},
+        {"name":"mould","configuration":[{"operation":"mould","time":15}]},
+        {"name":"supermould","configuration":[{"operation":"mould","time":5}]}
+    ],
+    "layouts":[
+        {"layout":"simple","machines":["cutter1"],"order":["prod0"]},
+        {"layout":"layout2","machines":["cutter1","cutter+"],"order":["prod0"]}
+    ]   
+}
