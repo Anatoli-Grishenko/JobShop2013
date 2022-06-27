@@ -25,26 +25,26 @@ import messaging.ACLMessageTools;
  */
 public class NController extends AgentJobShop {
 
-    protected Product prod;
-    protected HashMap<String, Product> productQueue;
-    ArrayList<Product> doneProduct, receivedProduct;
-    ACLMessage producer;
-    String nextmachine, conversationID;
+    public enum Status {
+        WAITPRODUCT, FORWARDPRODUCT, CANCEL, EXIT
+    }
+    public Status myStatus;
+
+//    protected Product prod;
+//    protected HashMap<String, Product> productQueue;
+//    ArrayList<Product> doneProduct, receivedProduct;
+//    ACLMessage producer;
+    String nextMachine, conversationID;
 
     @Override
     public void setup() {
         super.setup();
-        productQueue = new HashMap();
-        doneProduct = new ArrayList();
-        receivedProduct = new ArrayList();
         this.DFAddMyServices(new String[]{"Controller"});
         Info("Setup ");
         Info("Waiting for machines to register in DF");
         this.LARVAwait(1000);
         this.getLayout();
-        Info("\n" + layout.toString());
-//        this.openXUITTY();
-//        this.openRemote();
+        myStatus = Status.WAITPRODUCT;
     }
 
     @Override
@@ -54,130 +54,79 @@ public class NController extends AgentJobShop {
 
     @Override
     public void Execute() {
-//        Info(this.layout.toString());
-        Info("Ready. Queue"); //=" + receivedProduct.size() + " prods.");
-//        showSummary();
-        inbox = this.LARVAblockingReceive(1000);
+        Info("Ready. Status: " + myStatus.name());
+        switch (myStatus) {
+            case WAITPRODUCT:
+                myStatus = myWaitProduct();
+                break;
+            case FORWARDPRODUCT:
+                myStatus = myForwardProduct();
+                break;
+            case CANCEL:
+                myStatus = myCancel();
+                break;
+            case EXIT:
+                doExit();
+                break;
+        }
+    }
+
+    public Status myWaitProduct() {
+        inbox = this.LARVAblockingReceive(SHORTWAIT);
         if (inbox != null) {
             switch (inbox.getPerformative()) {
                 case ACLMessage.CANCEL:
-                    outbox = new ACLMessage(ACLMessage.CANCEL);
-                    outbox.setSender(getAID());
-                    outbox.setContent("");
-                    for (String s : layout.Machines.keySet()) {
-                        outbox.addReceiver(new AID(s, AID.ISLOCALNAME));
-                    }
-                    LARVAsend(outbox);
-                    doExit();
-                    break;
+                    return Status.CANCEL;
                 case ACLMessage.REQUEST:
-                    prod = new Product(inbox.getContent());
+                    product = new Product(inbox.getContent());
+                    Info("Request " + product.toString());
+                    product.nextOperation();
                     if (conversationID == null) {
                         conversationID = inbox.getConversationId();
                     }
-                    Info("Request " + prod.toString());
-                    receivedProduct.add(new Product(inbox.getContent()));
-                    prod.nextOperation();
-                    productQueue.put(prod.getID(), prod);
-                    break;
-                case ACLMessage.INFORM:
+                    queuedProducts.add(product);
+                    return Status.FORWARDPRODUCT;
                 default:
                     Info("Ignoring " + ACLMessageTools.fancyWriteACLM(inbox, true));
-
+                    return Status.WAITPRODUCT;
             }
         } else {
-            //Info("Received null");
+            return Status.FORWARDPRODUCT;
         }
-        if (!productQueue.isEmpty()) {
-            prod = productQueue.get(new ArrayList<String>(productQueue.keySet()).get(0));
-            Info("Trying to continue " + prod.toString());
-            nextmachine = this.callForProposals(prod, conversationID);
-            if (nextmachine != null) {
-                productQueue.remove(prod.getID());
 
-                Info("Accept propose from " + nextmachine + " due to " + myOpt.name());
+    }
+
+    public Status myForwardProduct() {
+        if (!queuedProducts.isEmpty()) {
+            Info("Forwarding product "+product);
+            product = queuedProducts.get(0);
+            nextMachine = this.callForProposals(product, conversationID);
+            if (nextMachine != null) {
+                queuedProducts.remove(0);
+                Info("Accept propose from " + nextMachine + " due to " + myOpt.name());
                 outbox = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
                 outbox.setSender(this.getAID());
-                outbox.setContent(prod.toString());
+                outbox.setContent(product.toString());
                 outbox.setConversationId(conversationID);
-                outbox.addReceiver(new AID(nextmachine, AID.ISLOCALNAME));
+                outbox.addReceiver(new AID(nextMachine, AID.ISLOCALNAME));
                 LARVAsend(outbox);
-            }
-//            this.saveSequenceDiagram("jobshop.seqd");
-        }
-    }
-
-    public ArrayList<String> getAvailableMachines(Operations op) {
-        ArrayList<String> res = new ArrayList();
-        for (String s : layout.Capabilities2Machine.get(op)) {
-            if (layout.Machines.get(s).isAvailable()) {
-                res.add(s);
+            } else {
+                Info("Waiting for a machine to be AVAILABLE for op "+product.getCurrentOperation().name());
             }
         }
-        return res;
+        return Status.WAITPRODUCT;
     }
 
-//    public void showSummary() {
-//        getLayout();
-//        ArrayList<String> machines = new ArrayList(layout.Machines.keySet()),
-//                products = new ArrayList(this.productQueue.keySet());
-//
-//        xuitty.setCursorXY(1, 1);
-//        xuitty.textColor(White);
-//        xuitty.noprint("QUEUE  ");
-//        for (String s : products) {
-//            xuitty.noprint("[");
-//            printProduct(productQueue.get(s));
-//            xuitty.noprint("|" + productQueue.get(s).getCurrentOperation().name() + "]  ");
-//        }
-//        xuitty.noprint("             ");
-//        for (int i = 0; i < machines.size(); i++) {
-//            xuitty.setCursorXY(1, 3 + i);
-//            xuitty.noprint(machines.get(i) + ": ");
-//            xuitty.setCursorXY(10 + ((int) this.getNCycles() * 4) % (xuitty.getXUIWidth() - 30), 3 + i);
-//            if (layout.Machines.get(machines.get(i)).getProcessing() == null) { //.isAvailable()) {
-//                xuitty.noprint("|   " + "    ");
-//            } else {
-//                xuitty.noprint("|");
-//                printProduct(layout.Machines.get(machines.get(i)).getProcessing());
-//                xuitty.noprint("    ");
-//            }
-//        }
-//        int y = 3;
-//        xuitty.setCursorXY(xuitty.getXUIWidth() - 30, y++);
-//        xuitty.textColor(Green);
-//        xuitty.noprint("RECEIVED");
-//
-//        for (Product p : receivedProduct) {
-//            xuitty.setCursorXY(xuitty.getXUIWidth() - 30, y++);
-//            printProduct(p);
-//            xuitty.noprint(">");
-//            for (Operations op : p.getSequence()) {
-//                xuitty.noprint(op.name().substring(0, 1));
-//            }
-//        }
-//        y = 3;
-//        xuitty.setCursorXY(xuitty.getXUIWidth() - 15, y++);
-//        xuitty.textColor(Green);
-//        xuitty.noprint("DONE");
-//
-//        for (Product p : doneProduct) {
-//            xuitty.setCursorXY(xuitty.getXUIWidth() - 15, y++);
-//            printProduct(p);
-//        }
-//        xuitty.print("");
-//    }
-//
-//    public void printProduct(Product p) {
-//        int color;
-//        try {
-//            color = Integer.parseInt(p.getID());
-//        } catch (Exception ex) {
-//            color = 0;
-//        }
-//        color = color % HTMLColor.values().length + 1;
-////        xuitty.noprint(p.getID());
-//        xuitty.textColor(HTMLColor.values()[color]).noprint(p.getID()).textColor(White);
-//
-//    }
+    public Status myCancel() {
+        Info("Cancelling");
+        outbox = new ACLMessage(ACLMessage.CANCEL);
+        outbox.setSender(getAID());
+        outbox.setContent("");
+        for (String s : Machines) {
+            outbox.addReceiver(new AID(s, AID.ISLOCALNAME));
+        }
+        LARVAsend(outbox);
+        return Status.EXIT;
+    }
+
 }

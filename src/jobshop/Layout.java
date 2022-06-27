@@ -26,12 +26,19 @@ public class Layout {
 
     @Override
     public String toString() {
-        String res = "";
+        Machine m;
+        String res = "\n";
         for (String smachine : Machines.keySet()) {
+            m = Machines.get(smachine);
             res += smachine;
             for (Operations op : Machine2Capabilities.get(smachine)) {
                 res += "[" + op.name() + "] ";
             }
+            if (m.isAvailable()) {
+                res += " AVA ";
+            } 
+            else
+                res += " " +m.getProcessing().getID()+" ";
             res += "\n";
         }
         return res;

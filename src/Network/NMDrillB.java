@@ -22,7 +22,7 @@ public class NMDrillB extends NMachine{
     @Override
     public void setup(){
         super.setup();
-        myMachine.addCapability(Operations.DRILL, 6);
+        myMachine.addCapability(Operations.DRILL, 6, 4);
         this.DFAddMyServices(new String []{Operations.DRILL.name()});
         Info("Setup "+this.getClass().getName());
     }

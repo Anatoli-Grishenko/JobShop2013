@@ -17,14 +17,14 @@ import jobshop.Product;
  * @author Anatoli Grishenko <Anatoli.Grishenko@gmail.com>
  */
 public class HController extends AgentJobShop {
-    
+
     enum Status {
         WAIT, REQUEST, SELECTMACHINE,
         SENDPRODUCT, RECEIVEPRODUCT, CANCEL, EXIT
     };
     Status myStatus;
     String nextMachine;
-    
+
     @Override
     public void setup() {
         super.setup();
@@ -35,12 +35,12 @@ public class HController extends AgentJobShop {
         this.getLayout();
         myStatus = Status.WAIT;
     }
-    
+
     @Override
     public void takeDown() {
         super.takeDown();
     }
-    
+
     @Override
     public void Execute() {
         Info("Ready. Status: " + myStatus.name());
@@ -60,14 +60,17 @@ public class HController extends AgentJobShop {
             case RECEIVEPRODUCT:
                 myStatus = myReceiveProduct();
                 break;
+            case CANCEL:
+                myStatus = myCancel();
+                break;
             case EXIT:
                 doExit();
                 break;
         }
     }
-    
+
     public Status myWait() {
-        inbox = this.LARVAblockingReceive(1000);
+        inbox = this.LARVAblockingReceive(SHORTWAIT);
         if (inbox != null) {
             switch (inbox.getPerformative()) {
                 case ACLMessage.CANCEL:
@@ -88,10 +91,10 @@ public class HController extends AgentJobShop {
             return Status.SELECTMACHINE;
         }
     }
-    
+
     public Status myRequest() {
         product = new Product(inbox.getContent());
-        Info("Request received for " + product.toString());
+        Info("Request received " + product.toString());
         product.nextOperation();
         queuedProducts.add(product);
         ACLMessage aux = inbox;
@@ -103,7 +106,7 @@ public class HController extends AgentJobShop {
         this.LARVAsend(outbox);
         return Status.SELECTMACHINE;
     }
-    
+
     public Status mySelectMachine() {
         if (!queuedProducts.isEmpty()) {
             product = queuedProducts.get(0);
@@ -126,8 +129,15 @@ public class HController extends AgentJobShop {
                     outbox.setContent("Operation " + product.getCurrentOperation().name() + " not supported");
                     this.LARVAsend(outbox);
                 } else {
-                    if (!this.getAvailableMachines(product.getCurrentOperation()).isEmpty()) {
-                        nextMachine = outOf(this.getAvailableMachines(product.getCurrentOperation()));
+                    if (!this.getAllAvailableMachines(product.getCurrentOperation()).isEmpty()) {
+//                        if (myOpt == Optimizations.FASTEST) {
+//                            nextMachine = this.getFastestAvailableMachine(product.getCurrentOperation());
+//                        } else if (myOpt == Optimizations.CHEAPEST) {
+//                            nextMachine = this.getCheapestAvailableMachine(product.getCurrentOperation());
+//                        } else {
+                            nextMachine = outOf(this.getAllAvailableMachines(product.getCurrentOperation()));
+//                        }
+                        Info("Selected machine: "+nextMachine);
                         return Status.SENDPRODUCT;
                     } else {
                         Info("Unable to continue with product " + product.getID() + ": all machines are busy");
@@ -138,7 +148,7 @@ public class HController extends AgentJobShop {
         }
         return Status.WAIT;
     }
-    
+
     public Status myReceiveProduct() {
         product = new Product(inbox.getContent());
         queuedProducts.add(product);
@@ -146,7 +156,7 @@ public class HController extends AgentJobShop {
         layout.Machines.get(inbox.getSender().getLocalName()).setProcessing(null);
         return myStatus.SELECTMACHINE;
     }
-    
+
     public Status mySendProduct() {
         Info("Sending product " + product.getID() + " to machine " + nextMachine);
         outbox = new ACLMessage(ACLMessage.REQUEST);
@@ -158,7 +168,7 @@ public class HController extends AgentJobShop {
         layout.Machines.get(nextMachine).setProcessing(product);
         return Status.WAIT;
     }
-    
+
     public Status myCancel() {
         Info("Cancelling");
         outbox = new ACLMessage(ACLMessage.CANCEL);

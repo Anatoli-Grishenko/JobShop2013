@@ -38,7 +38,7 @@ public class HMachine extends AgentJobShop {
 
     @Override
     public void Execute() {
-        Info("Status: " + myStatus.name());
+//        Info("Status: " + myStatus.name());
         switch (myStatus) {
             case AVAILABLE:
                 myStatus = myAvailable();
@@ -55,7 +55,7 @@ public class HMachine extends AgentJobShop {
     }
 
     public Status myAvailable() {
-        inbox = this.LARVAblockingReceive(100);
+        inbox = this.LARVAblockingReceive(SHORTWAIT);
         if (inbox != null) {
             switch (inbox.getPerformative()) {
                 case ACLMessage.CANCEL:
@@ -63,14 +63,16 @@ public class HMachine extends AgentJobShop {
                 case ACLMessage.REQUEST:
                     product = new Product(inbox.getContent());
                     if (myMachine.isAvailable()) {
-                        if (myOpt == Optimizations.FASTEST) {
-                            product.setCost(product.getCost() + myMachine.processingTime(product.getCurrentOperation()));
-                        } else {
-                            product.setCost(product.getCost() + myMachine.processingCost(product.getCurrentOperation()) * myMachine.processingTime(product.getCurrentOperation()));
-                        }
+//                        if (myOpt == Optimizations.FASTEST) {
+//                            product.setCost(product.getCost() + myMachine.processingTime(product.getCurrentOperation()));
+//                        } else {
+//                            product.setCost(product.getCost() + myMachine.processingCost(product.getCurrentOperation()) * myMachine.processingTime(product.getCurrentOperation()));
+//                        }
+                        product.setCost(product.getCost() + myMachine.processingCost(product.getCurrentOperation()) * myMachine.processingTime(product.getCurrentOperation()));
                         product.setStart(TimeHandler.Now());
                         Info("Processing product " + product.toString());
                         this.setUnAvailable(product);
+                        fromWho.put("CONTROLLER", inbox);
                         timer = new TimeHandler();
                     } else {
                         outbox = inbox.createReply();
@@ -97,7 +99,7 @@ public class HMachine extends AgentJobShop {
             product.nextOperation();
             Info("Done processing product " + product.toString());
             product.setEnd(TimeHandler.Now());
-            outbox = inbox.createReply();
+            outbox = fromWho.get("CONTROLLER").createReply();
             outbox.setPerformative(ACLMessage.INFORM);
             outbox.setContent(product.toString());
             outbox.setInReplyTo(product.getID());
@@ -113,7 +115,7 @@ public class HMachine extends AgentJobShop {
             this.DFAddMyServices(new String[]{"AVAILABLE"});
         }
         for (String service : this.DFGetAllServicesProvidedBy(getLocalName())) {
-            if (service.startsWith("PROCESS ")) {
+            if (service.startsWith(Product.HEAD)) {
                 this.DFRemoveMyServices(new String[]{service});
             }
         }
@@ -125,7 +127,7 @@ public class HMachine extends AgentJobShop {
         if (this.DFHasService(getLocalName(), "AVAILABLE")) {
             this.DFRemoveMyServices(new String[]{"AVAILABLE"});
         }
-        this.DFAddMyServices(new String[]{"PROCESS " + p.toString()});
+        this.DFAddMyServices(new String[]{p.toProcess()});
     }
 
 }

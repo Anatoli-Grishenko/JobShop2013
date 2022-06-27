@@ -10,14 +10,15 @@ public class JobShop {
     public static void main(String[] args) {
         boot = new LARVABoot();
         boot.Boot("localhost", 1099);
-        StrongHierarchy();
-//        Network();
+//        StrongHierarchy();
+        Network();
         boot.WaitToShutDown();
 
     }
     
     public static void StrongHierarchy() {
         boot.launchAgent("hcutter1", StrongHierarchy.HMCutter1.class);
+        boot.launchAgent("hcutter2", StrongHierarchy.HMCutter1.class);
         boot.launchAgent("hcutter+", StrongHierarchy.HMCutterPRO.class);
         boot.launchAgent("hdriller", StrongHierarchy.HMDrillB.class);
         boot.launchAgent("hdriller+", StrongHierarchy.HMDrillA.class);

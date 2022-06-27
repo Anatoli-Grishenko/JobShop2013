@@ -17,8 +17,8 @@ public class NMCutterPRO extends NMachine{
     @Override
     public void setup(){
         super.setup();
-        myMachine.addCapability(Operations.SLOWCUT, 3);
-        myMachine.addCapability(Operations.FASTCUT, 1);
+        myMachine.addCapability(Operations.SLOWCUT, 3, 7);
+        myMachine.addCapability(Operations.FASTCUT, 1, 9);
         this.DFAddMyServices(new String []{Operations.SLOWCUT.name(), Operations.FASTCUT.name()});
         Info("Setup");
     }

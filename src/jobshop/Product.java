@@ -17,7 +17,7 @@ import java.util.ArrayList;
  * @author Anatoli Grishenko <Anatoli.Grishenko@gmail.com>
  */
 public class Product {
-
+    public static String SEP="@", HEAD="PROCESS"+SEP;
     String ID;
     ArrayList<Operations> Sequence;
     Operations currentOperation;
@@ -45,6 +45,8 @@ public class Product {
         this.ID = Keygen.getAlphaNumKey();
         Sequence = new ArrayList();
         currentOperation=null;
+        start="";
+        end="";
     }
 
     public String getStart() {
@@ -154,6 +156,9 @@ public class Product {
         return jsres;
     }
 
+    public String  toProcess() {
+        return HEAD+toString();
+    }
     @Override
     public String toString() {
         return toJson().toString();

@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import jobshop.Machine;
 import jobshop.Operations;
 import jobshop.Product;
+import tools.TimeHandler;
 
 /**
  *
@@ -28,7 +29,8 @@ public class AgentProducer extends AgentJobShop {
         WAITANSWERS, PRODUCE, CANCEL, EXIT
     };
     Status myStatus;
-    double total;
+    double cost, makespan;
+    TimeHandler start, timepoint;
 
     @Override
     public void setup() {
@@ -36,9 +38,11 @@ public class AgentProducer extends AgentJobShop {
         Info("Setup ");
         who.put("MYCONTROLLER", this.DFGetAllProvidersOf("Controller").get(0));
         this.openXUITTY();
-        productionSet2();
-        total = 0;
+        productionSet1b();
+        cost = 0;
+        makespan = 0;
         myStatus = Status.PRODUCE;
+        start= new TimeHandler();
     }
 
     @Override
@@ -55,7 +59,6 @@ public class AgentProducer extends AgentJobShop {
                 break;
             case CANCEL:
                 myStatus = myCancel();
-                break;
             case EXIT:
                 doExit();
                 break;
@@ -84,17 +87,14 @@ public class AgentProducer extends AgentJobShop {
     }
 
     public Status myWait() {
-        inbox = this.LARVAblockingReceive(1000);
+        inbox = this.LARVAblockingReceive(LONGWAIT);
         if (inProductionProducts.size() > doneProducts.size()) {
             if (inbox != null) {
                 if (inbox.getPerformative() == ACLMessage.INFORM) {
                     product = new Product(inbox.getContent());
                     doneProducts.add(product);
-                    if (myOpt == Optimizations.FASTEST) {
-                        total = Math.max(total, product.getCost());
-                    } else {
-                        total = total + product.getCost();
-                    }
+                    cost = cost + product.getCost();
+                    makespan=Math.max(makespan, start.elapsedTimeSecs(new TimeHandler(product.getEnd())));
                 }
             }
             return Status.PRODUCE;
@@ -114,67 +114,60 @@ public class AgentProducer extends AgentJobShop {
     }
 
     public void productionSet1() {
-        Product p;
         inProductionProducts.clear();
         queuedProducts.clear();
-        p = new Product();
+        product = new Product();
         product.setID("000");
         product.addOperation(Operations.BEGIN)
                 .addOperation(Operations.SLOWCUT)
                 .addOperation(Operations.END);
-        inProductionProducts.add(p);
-        queuedProducts.add(p);
+        inProductionProducts.add(product);
+        queuedProducts.add(product);
     }
 
     public void productionSet1b() {
-        Product p;
         inProductionProducts.clear();
         queuedProducts.clear();
         for (int i = 0; i < 5; i++) {
-            p = new Product();
+            product = new Product();
             product.setID(String.format("%03d", i));
             product.addOperation(Operations.BEGIN)
                     .addOperation(Operations.SLOWCUT)
                     .addOperation(Operations.END);
-            inProductionProducts.add(p);
-            queuedProducts.add(p);
+            inProductionProducts.add(product);
+            queuedProducts.add(product);
         }
     }
 
     public void productionSet2() {
-        Product p;
         inProductionProducts.clear();
         queuedProducts.clear();
         for (int i = 0; i < 5; i++) {
-            p = new Product();
+            product = new Product();
             product.setID(String.format("%03d", i));
             product.addOperation(Operations.BEGIN)
                     .addOperation(Operations.SLOWCUT)
                     .addOperation(Operations.DRILL)
                     .addOperation(Operations.POLISH)
                     .addOperation(Operations.END);
-            inProductionProducts.add(p);
-            queuedProducts.add(p);
+            inProductionProducts.add(product);
+            queuedProducts.add(product);
         }
     }
 
     public void productionSet3() {
-        Product p;
         inProductionProducts.clear();
         queuedProducts.clear();
         for (int i = 0; i < 5; i++) {
-            p = this.genProduct((int) (Math.random() * 5), i);
-            inProductionProducts.add(p);
-            queuedProducts.add(p);
+            product = this.genProduct((int) (Math.random() * 5), i);
+            inProductionProducts.add(product);
+            queuedProducts.add(product);
         }
     }
 
     public Product genProduct(int type, int n) {
-        Product p;
-        p = new Product();
-//        product.setID(""+this.getNCycles()); 
+        product = new Product();
         product.setID(String.format("%03d", n));
-//        p = new Product(Keygen.getWordo(8));
         product.addOperation(Operations.BEGIN);
         switch (type) {
             case 0:
@@ -197,7 +190,7 @@ public class AgentProducer extends AgentJobShop {
                 break;
         }
         product.addOperation(Operations.END);
-        return p;
+        return product;
     }
 
     public void showSummary() {
@@ -206,11 +199,11 @@ public class AgentProducer extends AgentJobShop {
         ArrayList<String> machines = new ArrayList(layout.Machines.keySet());
 
         xuitty.textColor(White);
-        xuitty.doFrameTitle("JOBSHOP", 1, 1, 130, 35);
+        xuitty.doFrameTitle("JOBSHOP", 1, 1, 182, 35);
         x = 5;
         y = 3;
         xuitty.textColor(White);
-        xuitty.doFrameTitle("PRODUCTION", x - 1, y - 1, 120, 12);
+        xuitty.doFrameTitle(" PRODUCTION "+makespan+"s.  "+cost+"€", x - 1, y - 1, 178, 12);
         xuitty.textColor(White);
         for (int i = 0; i < machines.size(); i++) {
             xuitty.setCursorXY(x, y++);
@@ -226,42 +219,31 @@ public class AgentProducer extends AgentJobShop {
         }
         y = 15;
         x = 5;
-        xuitty.doFrameTitle("IN PRODUCTION", x - 1, y - 1, 26, 20);
-//        xuitty.setCursorXY(x, y++);
-//        xuitty.textColor(Green);
-//        xuitty.print("IN PRODUCTION");
+        xuitty.doFrameTitle(" IN PRODUCTION ", x - 1, y - 1, 26, 20);
         xuitty.textColor(White);
         for (Product p : inProductionProducts) {
             xuitty.setCursorXY(x, y++);
             printProduct(p);
             xuitty.print(">");
-            for (Operations op : product.getSequence()) {
+            for (Operations op : p.getSequence()) {
                 xuitty.print(op.name().substring(0, 1));
             }
-//            xuitty.print(p.toString());
         }
         y = 15;
         x = 35;
         xuitty.textColor(White);
-        xuitty.doFrameTitle("FINISHED (total= " + total + ")", x - 1, y - 1, 26, 20);
-//        xuitty.setCursorXY(x, y++);
-//        xuitty.textColor(Red);
-//        xuitty.print("FINISHED");
+        xuitty.doFrameTitle(" FINISHED ", x - 1, y - 1, 26, 20);
         xuitty.textColor(White);
         xuitty.textColor(White);
         for (Product p : doneProducts) {
             xuitty.setCursorXY(x, y++);
             printProduct(p);
-            xuitty.print(" Cost " + product.getCost());
+            xuitty.print(" Cost " + p.getCost());
         }
         y = 15;
         x = 65;
         xuitty.textColor(White);
         xuitty.doFrameTitle("DF INFO", x - 1, y - 1, 30, 20);
-//        xuitty.setCursorXY(x, y++);
-//        xuitty.textColor(Blue);
-//        xuitty.print("DF");
-
         Machine m;
         for (String smachine : layout.Machines.keySet()) {
             m = layout.Machines.get(smachine);

@@ -17,7 +17,7 @@ public class NMPolisher extends NMachine{
     @Override
     public void setup(){
         super.setup();
-        myMachine.addCapability(Operations.POLISH, 3);
+        myMachine.addCapability(Operations.POLISH, 3, 7);
         this.DFAddMyServices(new String []{Operations.POLISH.name()});
         Info("Setup "+this.getClass().getName());
     }

@@ -24,7 +24,7 @@ import jobshop.Product;
  * @author Anatoli Grishenko <Anatoli.Grishenko@gmail.com>
  */
 public class AgentJobShop extends LARVAFirstAgent {
-
+    protected final int SHORTWAIT=100, LONGWAIT=1000;
     protected enum Optimizations {
         FASTEST, CHEAPEST, ANY
     };
@@ -41,7 +41,7 @@ public class AgentJobShop extends LARVAFirstAgent {
     public void setup() {
         super.setup();
         logger.onTabular();
-        myOpt = Optimizations.CHEAPEST;
+        myOpt = Optimizations.FASTEST;
         Machines = this.DFGetAllProvidersOf("Machine");        
         inProductionProducts = new ArrayList();
         doneProducts = new ArrayList();
@@ -84,8 +84,8 @@ public class AgentJobShop extends LARVAFirstAgent {
             } else {
                 m.setAvailable(false);
                 for (String service : this.DFGetAllServicesProvidedBy(smachine)) {
-                    if (service.startsWith("PROCESS")) {
-                        m.setProcessing(new Product(service.split(" ")[1]));
+                    if (service.startsWith(Product.HEAD)) {
+                        m.setProcessing(new Product(service.split(Product.SEP)[1]));
                     }
                 }
 
@@ -118,8 +118,8 @@ public class AgentJobShop extends LARVAFirstAgent {
                 this.Error("Operation " + prod.getCurrentOperation().name() + " not supported");
                 sbest = null;
             } else {
-                if (!this.getAvailableMachines(prod.getCurrentOperation()).isEmpty()) {
-                    candidates = this.getAvailableMachines(prod.getCurrentOperation());
+                if (!this.getAllAvailableMachines(prod.getCurrentOperation()).isEmpty()) {
+                    candidates = this.getAllAvailableMachines(prod.getCurrentOperation());
                     ncandidates = candidates.size();
                     outbox = new ACLMessage(ACLMessage.CFP);
                     outbox.setSender(this.getAID());
@@ -197,7 +197,7 @@ public class AgentJobShop extends LARVAFirstAgent {
         return sbest;
     }
 
-    public ArrayList<String> getAvailableMachines(Operations op) {
+    public ArrayList<String> getAllAvailableMachines(Operations op) {
         ArrayList<String> res = new ArrayList();
         for (String s : layout.Capabilities2Machine.get(op)) {
             if (layout.Machines.get(s).isAvailable()) {
@@ -207,4 +207,33 @@ public class AgentJobShop extends LARVAFirstAgent {
         return res;
     }
 
+    public String getCheapestAvailableMachine(Operations op) {
+        String sbest="";
+        double dbest=Integer.MAX_VALUE;
+        for (String s : layout.Capabilities2Machine.get(op)) {
+            if (layout.Machines.get(s).isAvailable()) {
+                if (layout.Machines.get(s).processingCost(op)<dbest) {
+                    dbest = layout.Machines.get(s).processingCost(op);
+                    sbest=s;
+                }
+            }
+        }
+        return sbest;
+    }
+
+    public String getFastestAvailableMachine(Operations op) {
+        String sbest="";
+        double dbest=Integer.MAX_VALUE;
+        for (String s : layout.Capabilities2Machine.get(op)) {
+            if (layout.Machines.get(s).isAvailable()) {
+                if (layout.Machines.get(s).processingTime(op)<dbest) {
+                    dbest = layout.Machines.get(s).processingTime(op);
+                    sbest=s;
+                }
+            }
+        }
+        return sbest;
+    }
+
+    
 }
