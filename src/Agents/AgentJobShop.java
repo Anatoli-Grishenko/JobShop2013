@@ -42,7 +42,6 @@ public class AgentJobShop extends LARVAFirstAgent {
         super.setup();
         logger.onTabular();
         myOpt = Optimizations.FASTEST;
-        Machines = this.DFGetAllProvidersOf("Machine");        
         inProductionProducts = new ArrayList();
         doneProducts = new ArrayList();
         queuedProducts = new ArrayList();
@@ -63,6 +62,7 @@ public class AgentJobShop extends LARVAFirstAgent {
         Operations op;
         Machine m;
         layout = new Layout();
+        Machines = this.DFGetAllProvidersOf("Machine");                
         for (String smachine : Machines) {
             m = new Machine(smachine);
             layout.Machines.put(smachine, m);
@@ -114,7 +114,7 @@ public class AgentJobShop extends LARVAFirstAgent {
 //        do {
             Info("Negotiation to " + prod.toString());
             
-            if (layout.Capabilities2Machine.get(prod.getCurrentOperation()) == null) {
+            if (this.DFGetAllProvidersOf(prod.getCurrentOperation().name()).isEmpty()) {
                 this.Error("Operation " + prod.getCurrentOperation().name() + " not supported");
                 sbest = null;
             } else {
@@ -199,7 +199,7 @@ public class AgentJobShop extends LARVAFirstAgent {
 
     public ArrayList<String> getAllAvailableMachines(Operations op) {
         ArrayList<String> res = new ArrayList();
-        for (String s : layout.Capabilities2Machine.get(op)) {
+        for (String s : this.DFGetAllProvidersOf(op.name())) {
             if (layout.Machines.get(s).isAvailable()) {
                 res.add(s);
             }
@@ -210,7 +210,7 @@ public class AgentJobShop extends LARVAFirstAgent {
     public String getCheapestAvailableMachine(Operations op) {
         String sbest="";
         double dbest=Integer.MAX_VALUE;
-        for (String s : layout.Capabilities2Machine.get(op)) {
+        for (String s : this.DFGetAllProvidersOf(op.name())) {
             if (layout.Machines.get(s).isAvailable()) {
                 if (layout.Machines.get(s).processingCost(op)<dbest) {
                     dbest = layout.Machines.get(s).processingCost(op);
@@ -224,7 +224,7 @@ public class AgentJobShop extends LARVAFirstAgent {
     public String getFastestAvailableMachine(Operations op) {
         String sbest="";
         double dbest=Integer.MAX_VALUE;
-        for (String s : layout.Capabilities2Machine.get(op)) {
+        for (String s : this.DFGetAllProvidersOf(op.name())) {
             if (layout.Machines.get(s).isAvailable()) {
                 if (layout.Machines.get(s).processingTime(op)<dbest) {
                     dbest = layout.Machines.get(s).processingTime(op);

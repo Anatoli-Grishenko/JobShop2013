@@ -106,6 +106,7 @@ public class NMachine extends AgentJobShop {
                 default:
                     Info("Ignoring " + ACLMessageTools.fancyWriteACLM(inbox, true));
             }
+        } else if (queuedProducts.size() > 0) {
         }
         if (timer != null) {
             return Status.BUSY;
@@ -118,8 +119,8 @@ public class NMachine extends AgentJobShop {
         if (timer != null) {
             if (timer.elapsedTimeSecs(new TimeHandler()) >= (int) (myMachine.processingTime(product.getCurrentOperation()))) {
                 Info("Done processing product " + product.toString());
-                this.setAvailable();
                 timer = null;
+                product.setEnd(TimeHandler.Now());
                 product.nextOperation();
                 if (product.getCurrentOperation() == Operations.END) {
                     outbox = new ACLMessage(ACLMessage.INFORM);
@@ -127,7 +128,9 @@ public class NMachine extends AgentJobShop {
                     outbox.addReceiver(new AID(fromWho.get("SENDER").getConversationId(), AID.ISLOCALNAME));
                     outbox.setContent(product.toString());
                     outbox.setInReplyTo(product.getID());
+                    outbox.setConversationId(conversationID);
                     LARVAsend(outbox);
+                    this.setAvailable();
                 } else {
                     return Status.FORWARDPRODUCT;
                 }
@@ -146,10 +149,12 @@ public class NMachine extends AgentJobShop {
             outbox.setConversationId(conversationID);
             outbox.addReceiver(new AID(nextMachine, AID.ISLOCALNAME));
             LARVAsend(outbox);
+            this.setAvailable();
+            return Status.AVAILABLE;
         } else {
-            Info("Waiting for a machine to be AVAILABLE for op " + product.getCurrentOperation().name());
+            Info("Waiting for a machine to be AVAILABLE for op " + product.getCurrentOperation().name() + " of product " + product.getID());
+            return myStatus;
         }
-        return Status.AVAILABLE;
     }
 
     public void setAvailable() {

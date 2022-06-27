@@ -5,11 +5,6 @@
  */
 package StrongHierarchy;
 
-import jade.core.AID;
-import jade.lang.acl.ACLMessage;
-import java.util.ArrayList;
-import java.util.HashMap;
-import jobshop.Machine;
 import jobshop.Operations;
 
 /**

@@ -38,7 +38,7 @@ public class AgentProducer extends AgentJobShop {
         Info("Setup ");
         who.put("MYCONTROLLER", this.DFGetAllProvidersOf("Controller").get(0));
         this.openXUITTY();
-        productionSet1b();
+        productionSet2();
         cost = 0;
         makespan = 0;
         myStatus = Status.PRODUCE;
@@ -47,7 +47,8 @@ public class AgentProducer extends AgentJobShop {
 
     @Override
     public void Execute() {
-        Info("Ready. Status:" + myStatus.name() + ", " + inProductionProducts.size() + " in production)");
+        Info("Ready. Status:" + myStatus.name() + ", " + inProductionProducts.size() + " in production)"
+        + doneProducts.size() + " done)");
         showSummary();
         this.saveSequenceDiagram("jobshop.seqd");
         switch (myStatus) {
