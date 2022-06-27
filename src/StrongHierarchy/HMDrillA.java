@@ -5,8 +5,6 @@
  */
 package StrongHierarchy;
 
-import Agents.AgentMachine;
-import Agents.AgentMachine;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import java.util.ArrayList;
@@ -18,13 +16,12 @@ import jobshop.Operations;
  *
  * @author Anatoli Grishenko <Anatoli.Grishenko@gmail.com>
  */
-public class HMDrillA extends AgentMachine{
+public class HMDrillA extends HMachine{
     
     @Override
     public void setup(){
         super.setup();
-        myMachine.addCapability(Operations.DRILL, 10);
-        myMachine.setAvailable(false);
+        myMachine.addCapability(Operations.DRILL, 3, 7);
         this.DFAddMyServices(new String []{Operations.DRILL.name()});
         Info("Setup "+this.getClass().getName());
     }

@@ -6,15 +6,9 @@
 package StrongHierarchy;
 
 import Agents.AgentJobShop;
-import agents.LARVAFirstAgent;
-import com.eclipsesource.json.Json;
-import com.eclipsesource.json.JsonObject;
-import console.Console;
-import static console.Console.blue;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import java.util.ArrayList;
-import java.util.HashMap;
 import jobshop.Operations;
 import jobshop.Product;
 
@@ -23,148 +17,157 @@ import jobshop.Product;
  * @author Anatoli Grishenko <Anatoli.Grishenko@gmail.com>
  */
 public class HController extends AgentJobShop {
-
-    protected Product prod;
-    protected HashMap<String, Product> productQueue;
-    ArrayList<Product> doneProduct;
-    ACLMessage producer;
-    String nextmachine;
-    Console terminal;
-    int colors[] = {Console.red, Console.blue, Console.green, Console.lightblue, Console.lightred, Console.lightgreen};
-
+    
+    enum Status {
+        WAIT, REQUEST, SELECTMACHINE,
+        SENDPRODUCT, RECEIVEPRODUCT, CANCEL, EXIT
+    };
+    Status myStatus;
+    String nextMachine;
+    
     @Override
     public void setup() {
         super.setup();
-        productQueue = new HashMap();
-        doneProduct = new ArrayList();
         this.DFAddMyServices(new String[]{"Controller"});
         Info("Setup ");
         Info("Waiting for machines to register in DF");
         this.LARVAwait(1000);
         this.getLayout();
-        Info("\n" + layout.toString());
-        terminal = new Console("Production", 180, 25, 7);
+        myStatus = Status.WAIT;
     }
-
+    
+    @Override
+    public void takeDown() {
+        super.takeDown();
+    }
+    
     @Override
     public void Execute() {
-//        Info(this.layout.toString());
-        Info("Ready");
+        Info("Ready. Status: " + myStatus.name());
+        switch (myStatus) {
+            case WAIT:
+                myStatus = myWait();
+                break;
+            case REQUEST:
+                myStatus = myRequest();
+                break;
+            case SELECTMACHINE:
+                myStatus = mySelectMachine();
+                break;
+            case SENDPRODUCT:
+                myStatus = mySendProduct();
+                break;
+            case RECEIVEPRODUCT:
+                myStatus = myReceiveProduct();
+                break;
+            case EXIT:
+                doExit();
+                break;
+        }
+    }
+    
+    public Status myWait() {
         inbox = this.LARVAblockingReceive(1000);
         if (inbox != null) {
             switch (inbox.getPerformative()) {
+                case ACLMessage.CANCEL:
+                    return Status.CANCEL;
                 case ACLMessage.REQUEST:
-                    prod = new Product(inbox.getContent());
-                    if (prod.getCurrentOperation() == Operations.BEGIN) {
-                        prod.nextOperation();
-                        productQueue.put(prod.getID(), prod);
-                        producer = inbox;
-                        outbox = producer.createReply();
-                        outbox.setPerformative(ACLMessage.AGREE);
-                        outbox.setContent(prod.getID());
-                        this.LARVAsend(outbox);
-                    }
-                    break;
+                    return Status.REQUEST;
                 case ACLMessage.INFORM:
-                    prod = new Product(inbox.getContent());
-                    productQueue.put(prod.getID(), prod);
-                    layout.Machines.get(inbox.getSender().getLocalName()).setAvailable(true);
-                    layout.Machines.get(nextmachine).setProcessing(null);
-                    break;
+                    return Status.RECEIVEPRODUCT;
                 default:
                     Error("Unrecognizable performative " + ACLMessage.getPerformative(inbox.getPerformative()));
-                    outbox = producer.createReply();
+                    outbox = inbox.createReply();
                     outbox.setPerformative(ACLMessage.NOT_UNDERSTOOD);
                     outbox.setContent("Unrecognizable performative " + ACLMessage.getPerformative(inbox.getPerformative()));
                     LARVAsend(outbox);
-
+                    return myStatus;
             }
+        } else {
+            return Status.SELECTMACHINE;
         }
-        if (!productQueue.isEmpty()) {
-            prod = productQueue.get(new ArrayList<String>(productQueue.keySet()).get(0));
-            productQueue.remove(prod.getID());
-            Info("Trying product " + prod.getID());
-
-            if (prod.getCurrentOperation() == Operations.END) {
-                doneProduct.add(prod);
-                Info("Done processing product " + prod.getID());
-                outbox = producer.createReply();
+    }
+    
+    public Status myRequest() {
+        product = new Product(inbox.getContent());
+        Info("Request received for " + product.toString());
+        product.nextOperation();
+        queuedProducts.add(product);
+        ACLMessage aux = inbox;
+        fromWho.put("PRODUCER", aux);
+        outbox = inbox.createReply();
+        outbox.setPerformative(ACLMessage.AGREE);
+        outbox.setContent(product.toString());
+        outbox.setInReplyTo(product.getID());
+        this.LARVAsend(outbox);
+        return Status.SELECTMACHINE;
+    }
+    
+    public Status mySelectMachine() {
+        if (!queuedProducts.isEmpty()) {
+            product = queuedProducts.get(0);
+            queuedProducts.remove(0);
+            Info("Trying product " + product.getID());
+            if (product.getCurrentOperation() == Operations.END) {
+                doneProducts.add(product);
+                Info("Done processing product " + product.getID());
+                outbox = fromWho.get("PRODUCER").createReply();
                 outbox.setPerformative(ACLMessage.INFORM);
-                outbox.setContent(prod.getID());
+                outbox.setContent(product.toString());
+                outbox.setInReplyTo(product.getID());
                 this.LARVAsend(outbox);
-
             } else {
-                Info("Continue processing product " + prod.getID());
-                if (layout.Capabilities2Machine.get(prod.getCurrentOperation()) == null) {
-                    this.Error("Operation " + prod.getCurrentOperation().name() + " not supported");
-                    outbox = producer.createReply();
+                Info("Continue processing product " + product.getID());
+                if (layout.Capabilities2Machine.get(product.getCurrentOperation()) == null) {
+                    this.Error("Operation " + product.getCurrentOperation().name() + " not supported");
+                    outbox = fromWho.get("PRODUCER").createReply();
                     outbox.setPerformative(ACLMessage.REFUSE);
-                    outbox.setContent("Operation " + prod.getCurrentOperation().name() + " not supported");
+                    outbox.setContent("Operation " + product.getCurrentOperation().name() + " not supported");
                     this.LARVAsend(outbox);
                 } else {
-                    if (!this.getAvailableMachines(prod.getCurrentOperation()).isEmpty()) {
-                        nextmachine = outOf(this.getAvailableMachines(prod.getCurrentOperation()));
-                        Info("Sending product " + prod.getID() + " to machine " + nextmachine);
-                        outbox = new ACLMessage(ACLMessage.REQUEST);
-                        outbox.setSender(this.getAID());
-                        outbox.addReceiver(new AID(nextmachine, AID.ISLOCALNAME));
-                        outbox.setContent(prod.toString());
-                        this.LARVAsend(outbox);
-                        layout.Machines.get(nextmachine).setAvailable(false);
-                        layout.Machines.get(nextmachine).setProcessing(prod);
+                    if (!this.getAvailableMachines(product.getCurrentOperation()).isEmpty()) {
+                        nextMachine = outOf(this.getAvailableMachines(product.getCurrentOperation()));
+                        return Status.SENDPRODUCT;
                     } else {
-                        Info("Unable to continue with product " + prod.getID() + ": all machines are busy");
-                        productQueue.put(prod.getID(), prod);
+                        Info("Unable to continue with product " + product.getID() + ": all machines are busy");
+                        queuedProducts.add(product);
                     }
                 }
             }
         }
-        this.saveSequenceDiagram("jobshop.seqd");
-        showSummary();
-//        this.LARVAwait(1000);
+        return Status.WAIT;
     }
-
-    public ArrayList<String> getAvailableMachines(Operations op) {
-        ArrayList<String> res = new ArrayList();
-        for (String s : layout.Capabilities2Machine.get(op)) {
-            if (layout.Machines.get(s).isAvailable()) {
-                res.add(s);
-            }
-        }
-        return res;
+    
+    public Status myReceiveProduct() {
+        product = new Product(inbox.getContent());
+        queuedProducts.add(product);
+        layout.Machines.get(inbox.getSender().getLocalName()).setAvailable(true);
+        layout.Machines.get(inbox.getSender().getLocalName()).setProcessing(null);
+        return myStatus.SELECTMACHINE;
     }
-
-    public void showSummary() {
-        ArrayList<String> machines = new ArrayList(layout.Machines.keySet()),
-                products = new ArrayList(this.productQueue.keySet());
-//        terminal.clearScreen();
-        terminal.setCursorXY(1, 1);
-        for (String s : products) {
-            terminal.print("[" + printProduct(productQueue.get(s)) + "|" + productQueue.get(s).getCurrentOperation().name() + "]  ");
-        }
-        terminal.print("             ");
-        for (int i = 0; i < machines.size(); i++) {
-            terminal.setCursorXY(1, 3 + i);
-            terminal.print(machines.get(i) + ": ");
-            terminal.setCursorXY(5 + ((int) this.getNCycles() * 4) % (terminal.getWidth() - 25), 3 + i);
-            if (layout.Machines.get(machines.get(i)).isAvailable()) {
-                terminal.print("|AVA");
-            } else {
-                terminal.print("|" + printProduct(layout.Machines.get(machines.get(i)).getProcessing()));
-            }
-        }
-        int y = 1;
-        for (Product p : doneProduct) {
-            terminal.setCursorXY(terminal.getWidth() - 10, y++);
-            terminal.print(p.getID());
-        }
-
+    
+    public Status mySendProduct() {
+        Info("Sending product " + product.getID() + " to machine " + nextMachine);
+        outbox = new ACLMessage(ACLMessage.REQUEST);
+        outbox.setSender(this.getAID());
+        outbox.addReceiver(new AID(nextMachine, AID.ISLOCALNAME));
+        outbox.setContent(product.toString());
+        this.LARVAsend(outbox);
+        layout.Machines.get(nextMachine).setAvailable(false);
+        layout.Machines.get(nextMachine).setProcessing(product);
+        return Status.WAIT;
     }
-
-    public String printProduct(Product p) {
-        String res = "";
-        int color = Integer.parseInt(p.getID());
-        res+=Console.defText(colors[color])+p.getID();
-        return res;
+    
+    public Status myCancel() {
+        Info("Cancelling");
+        outbox = new ACLMessage(ACLMessage.CANCEL);
+        outbox.setSender(getAID());
+        outbox.setContent("");
+        for (String s : Machines) {
+            outbox.addReceiver(new AID(s, AID.ISLOCALNAME));
+        }
+        LARVAsend(outbox);
+        return Status.EXIT;
     }
 }

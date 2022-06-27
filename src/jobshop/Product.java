@@ -21,6 +21,8 @@ public class Product {
     String ID;
     ArrayList<Operations> Sequence;
     Operations currentOperation;
+    double cost;
+    String start, end;
 
     public Product() {
         clear();
@@ -43,6 +45,22 @@ public class Product {
         this.ID = Keygen.getAlphaNumKey();
         Sequence = new ArrayList();
         currentOperation=null;
+    }
+
+    public String getStart() {
+        return start;
+    }
+
+    public void setStart(String start) {
+        this.start = start;
+    }
+
+    public String getEnd() {
+        return end;
+    }
+
+    public void setEnd(String end) {
+        this.end = end;
     }
 
     public Operations getCurrentOperation() {
@@ -95,11 +113,22 @@ public class Product {
         return this;
     }
 
+    public double getCost() {
+        return cost;
+    }
+
+    public void setCost(double cost) {
+        this.cost = cost;
+    }
+
         
     private void fromJson(JsonObject jsProd) {
         clear();
         try {
             this.setID(jsProd.getString("id", Keygen.getAlphaNumKey()));
+            this.setStart(jsProd.getString("start", ""));
+            this.setEnd(jsProd.getString("end", ""));
+            this.setCost(jsProd.getDouble("cost", Integer.MAX_VALUE));
             this.setCurrentOperation(Operations.valueOf(jsProd.getString("current", Operations.BEGIN.name())));
             for (JsonValue jsv : jsProd.get("sequence").asArray()) {
                 this.addOperation(Operations.valueOf(jsv.asString()));
@@ -113,8 +142,12 @@ public class Product {
         JsonObject jsres = new JsonObject();
         JsonArray jsares = new JsonArray();
         jsres.add("id", this.getID());
+        jsres.add("start", this.getStart());
+        jsres.add("end", this.getEnd());
         jsres.add("current", this.getCurrentOperation().name());
-        this.getSequence().forEach(op -> {
+        jsres.add("cost", this.getCost());
+       
+       this.getSequence().forEach(op -> {
             jsares.add(op.name());
         });
         jsres.add("sequence", jsares);

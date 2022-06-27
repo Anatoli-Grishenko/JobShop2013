@@ -3,21 +3,22 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package StrongHierarchy;
+package Network;
 
+import StrongHierarchy.*;
 import jobshop.Operations;
 
 /**
  *
  * @author Anatoli Grishenko <Anatoli.Grishenko@gmail.com>
  */
-public class HMCutterPRO extends HMachine{
+public class NMCutterPRO extends NMachine{
     
     @Override
     public void setup(){
         super.setup();
-        myMachine.addCapability(Operations.SLOWCUT, 3, 7);
-        myMachine.addCapability(Operations.FASTCUT, 1, 9);
+        myMachine.addCapability(Operations.SLOWCUT, 3);
+        myMachine.addCapability(Operations.FASTCUT, 1);
         this.DFAddMyServices(new String []{Operations.SLOWCUT.name(), Operations.FASTCUT.name()});
         Info("Setup");
     }

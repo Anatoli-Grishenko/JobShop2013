@@ -22,6 +22,7 @@ public class Machine {
     String ID;
     ArrayList<Operations> capabilities;
     HashMap<Operations, Double> processingTime;
+    HashMap<Operations, Double> processingCost;
     boolean available;
     Product processing;
 
@@ -34,6 +35,7 @@ public class Machine {
         ID = "";
         capabilities = new ArrayList();
         processingTime = new HashMap();
+        processingCost = new HashMap();
         available = true;        
     }
     public String getID() {
@@ -55,6 +57,15 @@ public class Machine {
     public void addCapability(Operations op, double time) {
         capabilities.add(op);
         processingTime.put(op, time);
+        processingCost.put(op, 0.0);
+        
+    }
+
+    public void addCapability(Operations op, double time, double cost) {
+        capabilities.add(op);
+        processingTime.put(op, time);
+        processingCost.put(op, cost);
+        
     }
 
     public boolean hasCapability(Operations op) {
@@ -65,7 +76,15 @@ public class Machine {
         if (hasCapability(op)) {
             return processingTime.get(op);
         } else {
-            return -1;
+            return Integer.MAX_VALUE;
+        }
+    }
+
+    public double processingCost(Operations op) {
+        if (hasCapability(op)) {
+            return processingCost.get(op);
+        } else {
+            return Integer.MAX_VALUE;
         }
     }
 
@@ -89,7 +108,9 @@ public class Machine {
         capabilities.forEach(op -> {
             jsacapab.add(new JsonObject()
                     .add("operation", op.name())
-                    .add("time", processingTime.get(op)));
+                    .add("time", processingTime.get(op))
+                    .add("cost", processingCost.get(op))
+            );
         });
         jsres.add("configuration", jsacapab);
         return jsres.toString();
@@ -118,7 +139,8 @@ public class Machine {
             for (JsonValue jsv : jsres.get("configuration").asArray()) {
                 jsaux = jsv.asObject();
                 this.addCapability(Operations.valueOf(jsaux.getString("operation", "")), 
-                        jsaux.getDouble("time", 0));
+                        jsaux.getDouble("time", Integer.MAX_VALUE),
+                        jsaux.getDouble("cost", Integer.MAX_VALUE));
             }
             return true;
         } catch (Exception ex) {

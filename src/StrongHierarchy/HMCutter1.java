@@ -5,8 +5,6 @@
  */
 package StrongHierarchy;
 
-import Agents.AgentMachine;
-import Agents.AgentMachine;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import java.util.ArrayList;
@@ -18,14 +16,13 @@ import jobshop.Operations;
  *
  * @author Anatoli Grishenko <Anatoli.Grishenko@gmail.com>
  */
-public class HMCutter1 extends AgentMachine{
+public class HMCutter1 extends HMachine{
     
     @Override
     public void setup(){
         super.setup();
-        myMachine.addCapability(Operations.SLOWCUT, 10);
-        myMachine.addCapability(Operations.FASTCUT, 5);
-        myMachine.setAvailable(false);
+        myMachine.addCapability(Operations.SLOWCUT, 6, 4);
+        myMachine.addCapability(Operations.FASTCUT, 3, 7);
         this.DFAddMyServices(new String []{Operations.SLOWCUT.name(), Operations.FASTCUT.name()});
         Info("Setup");
     }

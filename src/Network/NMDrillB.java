@@ -3,8 +3,9 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package StrongHierarchy;
+package Network;
 
+import StrongHierarchy.*;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import java.util.ArrayList;
@@ -16,12 +17,12 @@ import jobshop.Operations;
  *
  * @author Anatoli Grishenko <Anatoli.Grishenko@gmail.com>
  */
-public class HMDrillB extends HMachine{
+public class NMDrillB extends NMachine{
     
     @Override
     public void setup(){
         super.setup();
-        myMachine.addCapability(Operations.DRILL, 6, 4);
+        myMachine.addCapability(Operations.DRILL, 6);
         this.DFAddMyServices(new String []{Operations.DRILL.name()});
         Info("Setup "+this.getClass().getName());
     }
